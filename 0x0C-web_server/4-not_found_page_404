@@ -1,23 +1,39 @@
 #!/usr/bin/env bash
-# Check if nginx is installed
-if ! command -v nginx &> /dev/null
-then
-    echo "Nginx is not installed. Please run the 1-install_nginx_web_server script first."
-    exit 1
-fi
+# Configures a new ubuntu machine by installing
+# Nginx where it should be listening on port 80
+# Serve a page that would return a Hello World string
+#
 
-# Creating configuration file for the custom 404 page
-echo "error_page 404 /custom_404.html;" | sudo tee /etc/nginx/sites-available/custom_404 > /dev/null
-echo "location = /custom_404.html {" | sudo tee -a /etc/nginx/sites-available/custom_404 > /dev/null
-echo "    internal;" | sudo tee -a /etc/nginx/sites-available/custom_404 > /dev/null
-echo "    return 200 'Ceci n\\'est pas une page\n';" | sudo tee -a /etc/nginx/sites-available/custom_404 > /dev/null
-echo "}" | sudo tee -a /etc/nginx/sites-available/custom_404 > /dev/null
+echo -e "Updating and installing Nginx.\n"
+sudo apt-get update -y -qq && \
+	 sudo apt-get install nginx -y
 
-# Creating a symbolic link to enable the configuration
-sudo ln -s /etc/nginx/sites-available/custom_404 /etc/nginx/sites-enabled/
+echo -e "\nSetting up some minor stuff.\n"
 
-# Reloading Nginx configuration
-sudo kill -s HUP $(pgrep -f "nginx: master process")
+# start nginx service
+sudo service nginx start
 
-# Output success message
-echo "Nginx configured to have a custom 404 page with the string 'Ceci n'est pas une page.'"
+# allow nginx on firewall
+sudo ufw allow 'Nginx HTTP'
+
+# Give the user ownership to website files for easy editing
+sudo chown -R "$USER":"$USER" /var/www/html
+sudo chmod -R 755 /var/www
+
+# Backup default index
+cp /var/www/html/index.nginx-debian.html /var/www/html/index.nginx-debian.html.bckp
+
+# Create new index
+echo -e "Hello World!" > /var/www/html/index.nginx-debian.html
+
+# Set up /redirect_me to a youtube video
+sudo sed -i '24i\	rewrite ^/redirect_me https://www.youtube.com/watch?v=QH2-TGUlwu4 permanent;' /etc/nginx/sites-available/default
+
+# Set up a 404 page
+echo "Ceci n'est pas une page" >> /var/www/html/error_404.html
+sudo sed -i '25i\	error_page 404 /error_404.html;' /etc/nginx/sites-available/default
+
+# Restart nginx
+sudo service nginx restart
+
+echo -e "\nCompleted.\n"
